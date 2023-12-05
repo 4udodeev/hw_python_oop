@@ -1,25 +1,24 @@
+from dataclasses import dataclass, asdict
+
+
+@dataclass
 class InfoMessage():
     """Информационное сообщение о тренировке."""
 
-    def __init__(self,
-                 training_type: str,
-                 duration: float,
-                 distance: float,
-                 speed: float,
-                 calories: float
-                 ) -> None:
-        self.training_type = training_type
-        self.duration = duration
-        self.distance = distance
-        self.speed = speed
-        self.calories = calories
+    training_type: str
+    duration: float
+    distance: float
+    speed: float
+    calories: float
+    message: str = ('Тип тренировки: {training_type}; '
+                    'Длительность: {duration:.3f} ч.; '
+                    'Дистанция: {distance:.3f} км; '
+                    'Ср. скорость: {speed:.3f} км/ч; '
+                    'Потрачено ккал: {calories:.3f}.')
 
     def get_message(self):
-        return (f'Тип тренировки: {self.training_type}; '
-                f'Длительность: {self.duration:.3f} ч.; '
-                f'Дистанция: {self.distance:.3f} км; '
-                f'Ср. скорость: {self.speed:.3f} км/ч; '
-                f'Потрачено ккал: {self.calories:.3f}.')
+        """Формирование итогового сообщения в необходимом формате"""
+        return self.message.format(**asdict(self))
 
 
 class Training():
@@ -27,7 +26,7 @@ class Training():
 
     M_IN_KM = 1000
     LEN_STEP = 0.65
-    CONVERT_TO_MINUTES = 60
+    MIN_IN_HOUR = 60
 
     def __init__(self,
                  action: int,
@@ -48,15 +47,12 @@ class Training():
 
     def get_spent_calories(self) -> float:
         """Получить количество затраченных калорий."""
-        pass
+        raise NotImplementedError('Расход каллорий индивидуален для каждого '
+                                  'вида тренировки. Расчет производится '
+                                  'персонально в каждом отдельном классе.')
 
     def show_training_info(self) -> InfoMessage:
         """Вернуть информационное сообщение о выполненной тренировке."""
-        # хотя, согласно задания тип тренировки должен быть записан кириллицей
-        # - "тип тренировки (бег, ходьба или плавание);"
-        # надо было бы прописать как self.__str__(), а не type(self).__name__
-        # для этого мной были добавлены соответствующие методы в классы.
-
         return InfoMessage(type(self).__name__,
                            self.duration,
                            self.get_distance(),
@@ -75,19 +71,16 @@ class Running(Training):
 
         return ((self.CALORIES_MEAN_SPEED_MULTIPLIER * self.get_mean_speed()
                 + self.CALORIES_MEAN_SPEED_SHIFT) * self.weigth / self.M_IN_KM
-                * (self.duration * self.CONVERT_TO_MINUTES))
-
-    def __str__(self) -> str:
-        return 'бег'
+                * (self.duration * self.MIN_IN_HOUR))
 
 
 class SportsWalking(Training):
     """Тренировка: спортивная ходьба."""
 
-    FIRST_COEF = 0.035
-    SECOND_COEF = 0.029
-    CONVERT_TO_MS = 0.278
-    CONVERT_TO_METERS = 100
+    WEIGHT_RATIO = 0.035
+    RATIO_OF_SPEED_TO_HEIGHT = 0.029
+    KMH_TO_MS = 0.278
+    CENTIMETERS_TO_METERS = 100
 
     def __init__(self,
                  action: int,
@@ -101,24 +94,21 @@ class SportsWalking(Training):
     def get_spent_calories(self):
         """Получить количество затраченных калорий."""
 
-        speed_in_ms = self.get_mean_speed() * self.CONVERT_TO_MS
-        helght_in_meters = float(self.height) / self.CONVERT_TO_METERS
+        speed_in_ms = self.get_mean_speed() * self.KMH_TO_MS
+        helght_in_meters = float(self.height) / self.CENTIMETERS_TO_METERS
 
-        return ((self.FIRST_COEF * self.weigth
+        return ((self.WEIGHT_RATIO * self.weigth
                 + (speed_in_ms**2 / helght_in_meters)
-                * self.SECOND_COEF * self.weigth)
-                * self.duration * self.CONVERT_TO_MINUTES)
-
-    def __str__(self) -> str:
-        return 'ходьба'
+                * self.RATIO_OF_SPEED_TO_HEIGHT * self.weigth)
+                * self.duration * self.MIN_IN_HOUR)
 
 
 class Swimming(Training):
     """Тренировка: плавание."""
 
     LEN_STEP = 1.38
-    FIRST_COEF = 1.1
-    SECOND_COEF = 2
+    MEAN_SPEED_RATIO = 1.1
+    WEIGHT_RATIO = 2
 
     def __init__(self,
                  action: int,
@@ -140,23 +130,26 @@ class Swimming(Training):
     def get_spent_calories(self):
         """Получить количество затраченных калорий."""
 
-        return ((self.get_mean_speed() + self.FIRST_COEF) * self.SECOND_COEF
+        return ((self.get_mean_speed() + self.MEAN_SPEED_RATIO)
+                * self.WEIGHT_RATIO
                 * self.weigth * self.duration)
 
-    def __str__(self) -> str:
-        return 'плавание'
+
+TRAINING_TYPES: dict[str, Training] = {
+    'SWM': Swimming,
+    'RUN': Running,
+    'WLK': SportsWalking
+}
 
 
 def read_package(workout_type: str, data: list) -> Training:
     """Прочитать данные полученные от датчиков."""
 
-    TRAINING_TYPES = {
-        'SWM': Swimming,
-        'RUN': Running,
-        'WLK': SportsWalking
-    }
+    if workout_type in TRAINING_TYPES:
+        return TRAINING_TYPES[workout_type](*data)
 
-    return TRAINING_TYPES[workout_type](*data)
+    raise KeyError(f'Тип тренировки {workout_type} не найден. '
+                   f'Проверьте входящие данные.')
 
 
 def main(training: Training) -> None:
