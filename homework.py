@@ -68,7 +68,6 @@ class Running(Training):
 
     def get_spent_calories(self):
         """Получить количество затраченных калорий."""
-
         return ((self.CALORIES_MEAN_SPEED_MULTIPLIER * self.get_mean_speed()
                 + self.CALORIES_MEAN_SPEED_SHIFT) * self.weigth / self.M_IN_KM
                 * (self.duration * self.MIN_IN_HOUR))
@@ -93,7 +92,6 @@ class SportsWalking(Training):
 
     def get_spent_calories(self):
         """Получить количество затраченных калорий."""
-
         speed_in_ms = self.get_mean_speed() * self.KMH_TO_MS
         helght_in_meters = float(self.height) / self.CENTIMETERS_TO_METERS
 
@@ -123,19 +121,17 @@ class Swimming(Training):
 
     def get_mean_speed(self):
         """Получить среднюю скорость движения."""
-
         return ((self.length_pool * self.count_pool)
                 / self.M_IN_KM / self.duration)
 
     def get_spent_calories(self):
         """Получить количество затраченных калорий."""
-
         return ((self.get_mean_speed() + self.MEAN_SPEED_RATIO)
                 * self.WEIGHT_RATIO
                 * self.weigth * self.duration)
 
 
-TRAINING_TYPES: dict[str, Training] = {
+TRAINING_TYPES: dict[str, type[Training]] = {
     'SWM': Swimming,
     'RUN': Running,
     'WLK': SportsWalking
@@ -144,17 +140,15 @@ TRAINING_TYPES: dict[str, Training] = {
 
 def read_package(workout_type: str, data: list) -> Training:
     """Прочитать данные полученные от датчиков."""
-
     if workout_type in TRAINING_TYPES:
         return TRAINING_TYPES[workout_type](*data)
 
-    raise KeyError(f'Тип тренировки {workout_type} не найден. '
-                   f'Проверьте входящие данные.')
+    raise ValueError(f'Тип тренировки {workout_type} не найден. '
+                     f'Проверьте входящие данные.')
 
 
 def main(training: Training) -> None:
     """Главная функция."""
-
     info = training.show_training_info()
     print(info.get_message())
 
